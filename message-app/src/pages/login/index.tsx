@@ -1,0 +1,191 @@
+// ** React Imports
+import { ReactNode, useState } from 'react'
+
+// ** Next Imports
+import { useRouter } from 'next/router'
+
+// ** MUI Components
+import { yupResolver } from '@hookform/resolvers/yup'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import MuiCard, { CardProps } from '@mui/material/Card'
+import CardContent from '@mui/material/CardContent'
+import FormControl from '@mui/material/FormControl'
+import FormHelperText from '@mui/material/FormHelperText'
+import IconButton from '@mui/material/IconButton'
+import InputAdornment from '@mui/material/InputAdornment'
+import InputLabel from '@mui/material/InputLabel'
+import OutlinedInput from '@mui/material/OutlinedInput'
+import TextField from '@mui/material/TextField'
+import Typography from '@mui/material/Typography'
+import { styled } from '@mui/material/styles'
+import { Controller, useForm } from 'react-hook-form'
+import * as yup from 'yup'
+import { ToastContainer, toast } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import { postAxios } from 'src/fetcher'
+
+// ** Icons Imports
+import EyeOffOutline from 'mdi-material-ui/EyeOffOutline'
+import EyeOutline from 'mdi-material-ui/EyeOutline'
+
+// ** Configs
+import themeConfig from 'src/configs/themeConfig'
+
+// ** Layout Import
+import BlankLayout from 'src/@core/layouts/BlankLayout'
+
+import { setCookie } from 'cookies-next'
+import { ACCESS_TOKEN, CHECK_USER_EXISTED_END_POINT, INVALID_CREDIT } from 'src/utils/const'
+import { signInWithEmailAndPassword } from 'firebase/auth'
+import auth from 'src/configs/firebase'
+import { FirebaseError } from 'firebase/app'
+import { CheckUserExistedResult } from 'src/utils/type'
+
+// ** Styled Components
+const Card = styled(MuiCard)<CardProps>(({ theme }) => ({
+  [theme.breakpoints.up('sm')]: { width: '28rem' }
+}))
+
+type FormLoginData = {
+  email: string
+  password: string
+}
+
+const LoginPage = () => {
+  // ** State
+  const [showPassword, setShowPassword] = useState<boolean>(false)
+
+  const schema = yup.object().shape({
+    email: yup.string().email().required(),
+    password: yup.string().min(5).required()
+  })
+
+  const {
+    control,
+    handleSubmit,
+    formState: { errors }
+  } = useForm<FormLoginData>({
+    mode: 'onBlur',
+    resolver: yupResolver(schema)
+  })
+
+  // ** Hook
+  const router = useRouter()
+
+  const handleLogin = async (loginData: FormLoginData) => {
+    try {
+      const postUrl = `${process.env.NEXT_PUBLIC_API_DOMAIN}${CHECK_USER_EXISTED_END_POINT}`
+      const { success, data } = await postAxios(
+        postUrl,
+        {
+          userEmail: loginData.email
+        },
+        undefined,
+        true
+      )
+
+      if (!success) {
+        toast.error('Error when login')
+
+        return
+      }
+
+      if (!(data as CheckUserExistedResult).isExisted) {
+        toast.error('Customer not existed')
+
+        return
+      }
+
+      const { user } = await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
+      const accessToken = await user.getIdToken()
+      setCookie(ACCESS_TOKEN, accessToken)
+      toast.success('Login success')
+      router.push('/')
+    } catch (error) {
+      const errorData = error as FirebaseError
+      if (errorData.code == INVALID_CREDIT) {
+        toast.error('Email or password are wrong')
+      } else {
+        toast.error('Can not login right now')
+      }
+    }
+  }
+
+  return (
+    <Box className='content-center'>
+      <ToastContainer />
+      <Card sx={{ zIndex: 1 }}>
+        <CardContent sx={{ padding: theme => `${theme.spacing(12, 9, 7)} !important` }}>
+          <Box sx={{ mb: 6 }}>
+            <Typography variant='h5' sx={{ fontWeight: 600, marginBottom: 1.5 }}>
+              Welcome to {themeConfig.templateName}! 👋🏻
+            </Typography>
+            <Typography variant='body2'>Please sign-in to your account and start the adventure</Typography>
+          </Box>
+          <form noValidate autoComplete='off' onSubmit={handleSubmit(data => handleLogin(data))}>
+            <FormControl fullWidth sx={{ mb: 4 }}>
+              <Controller
+                name='email'
+                control={control}
+                rules={{ required: true }}
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <TextField
+                    autoFocus
+                    label='Email'
+                    value={value}
+                    onBlur={onBlur}
+                    onChange={onChange}
+                    error={Boolean(errors.email)}
+                    placeholder='admin@materialize.com'
+                  />
+                )}
+              />
+              {errors.email && <FormHelperText error>{errors.email.message}</FormHelperText>}
+            </FormControl>
+            <FormControl fullWidth>
+              <InputLabel htmlFor='auth-login-v2-password' error={Boolean(errors.password)}>
+                Password
+              </InputLabel>
+              <Controller
+                name='password'
+                control={control}
+                rules={{ required: true }}
+                render={({ field: { value, onChange, onBlur } }) => (
+                  <OutlinedInput
+                    value={value}
+                    onBlur={onBlur}
+                    label='Password'
+                    onChange={onChange}
+                    id='auth-login-v2-password'
+                    error={Boolean(errors.password)}
+                    type={showPassword ? 'text' : 'password'}
+                    endAdornment={
+                      <InputAdornment position='end'>
+                        <IconButton
+                          edge='end'
+                          onMouseDown={e => e.preventDefault()}
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? <EyeOutline /> : <EyeOffOutline />}
+                        </IconButton>
+                      </InputAdornment>
+                    }
+                  />
+                )}
+              />
+              {errors.password && <FormHelperText error>{errors.password.message}</FormHelperText>}
+            </FormControl>
+            <Button fullWidth size='large' type='submit' variant='contained' sx={{ mb: 7, mt: 5 }}>
+              Login
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </Box>
+  )
+}
+
+LoginPage.getLayout = (page: ReactNode) => <BlankLayout>{page}</BlankLayout>
+
+export default LoginPage
