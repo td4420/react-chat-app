@@ -63,7 +63,7 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
           {
             id: newMessage.roomId,
             name: chatRoom.name,
-            ownerId: chatRoom.ownerId,
+            avatar: chatRoom.avatar,
             messages: [newMessage],
             members
           }

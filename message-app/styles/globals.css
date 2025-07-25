@@ -1,3 +1,4 @@
+@import '../node_modules/@chatscope/chat-ui-kit-styles/dist/default/styles.min.css';
 html,
 body {
   min-height: 100%;

@@ -1,6 +1,7 @@
 // ** React Imports
-import { createContext, ReactNode, useEffect, useState } from 'react'
+import { createContext, ReactNode, useEffect, useMemo, useState } from 'react'
 import { GlobalData, GlobalDataContextValue, RoomData } from 'src/@core/utils/type'
+import auth from 'src/configs/firebase'
 import { postAxios } from 'src/fetcher'
 import { GET_USER_CHAT_ROOMS_END_POINT } from 'src/utils/const'
 
@@ -11,18 +12,29 @@ const initialGlobalData: GlobalData = {
 // ** Create Context
 export const GlobalContext = createContext<GlobalDataContextValue>({
   setGlobalData: () => null,
-  globalData: initialGlobalData
+  globalData: initialGlobalData,
+  updateCurrentRoomId: () => null,
+  currentRoom: null
 })
 
 export const GlobalDataProvider = ({ children }: { children: ReactNode }) => {
   // ** State
   const [globalData, setData] = useState<GlobalData>({ ...initialGlobalData })
+  const [currentRoomId, setCurrentRoomId] = useState<string>('')
+  const currentUser = auth.currentUser
 
   const setGlobalData = (updatedSettings: GlobalData) => {
     setData(updatedSettings)
   }
 
+  const updateCurrentRoomId = (roomId: string) => {
+    setCurrentRoomId(roomId)
+  }
+
   useEffect(() => {
+    if (!currentUser) {
+      return
+    }
     const initData = async () => {
       const { success, data } = await postAxios(`${process.env.NEXT_PUBLIC_API_DOMAIN}${GET_USER_CHAT_ROOMS_END_POINT}`)
       if (!success || !data) {
@@ -35,7 +47,22 @@ export const GlobalDataProvider = ({ children }: { children: ReactNode }) => {
     }
 
     initData()
-  }, [])
+  }, [currentUser])
 
-  return <GlobalContext.Provider value={{ setGlobalData, globalData }}>{children}</GlobalContext.Provider>
+  const currentRoom = useMemo(() => {
+    const result = globalData.rooms.find(room => room.id === currentRoomId)
+    if (!result) {
+      return null
+    }
+
+    return {
+      ...result
+    }
+  }, [globalData, currentRoomId])
+
+  return (
+    <GlobalContext.Provider value={{ setGlobalData, globalData, updateCurrentRoomId, currentRoom }}>
+      {children}
+    </GlobalContext.Provider>
+  )
 }

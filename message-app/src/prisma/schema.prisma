@@ -14,7 +14,7 @@ model User {
   id          String       @id @default(uuid())
   email       String       @unique
   name        String
-  ownRooms    Room[]
+  avatar      String       @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
   roomMembers RoomMember[]
   messages    Message[]
 }
@@ -22,26 +22,31 @@ model User {
 model Room {
   id          String       @id @default(uuid())
   name        String
-  ownerId     String
-  owner       User         @relation(fields: [ownerId], references: [id])
+  avatar      String       @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
   roomMembers RoomMember[]
   messages    Message[]
 }
 
 model RoomMember {
-  id       String @id @default(uuid())
+  id       String   @id @default(uuid())
   memberId String
   roomId   String
-  member   User   @relation(fields: [memberId], references: [id])
-  room     Room   @relation(fields: [roomId], references: [id])
+  role     UserRole @default(USER)
+  member   User     @relation(fields: [memberId], references: [id])
+  room     Room     @relation(fields: [roomId], references: [id])
+}
+
+enum UserRole {
+  USER
+  ADMIN
 }
 
 model Message {
-  id      String @id  @default(uuid())
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
   hashContent String
-  senderId  String
-  sender    User @relation(fields: [senderId], references: [id])
-  roomId    String
-  room      Room @relation(fields: [roomId], references: [id])
+  senderId    String
+  sender      User     @relation(fields: [senderId], references: [id])
+  roomId      String
+  room        Room     @relation(fields: [roomId], references: [id])
 }

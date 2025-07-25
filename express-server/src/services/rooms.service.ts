@@ -67,7 +67,7 @@ export class RoomService {
         roomId,
       },
       orderBy: {
-        createdAt: Prisma.SortOrder.desc,
+        createdAt: Prisma.SortOrder.asc,
       },
       take: MAX_MESSAGE,
     });
@@ -110,8 +110,8 @@ export class RoomService {
     roomId: string,
     hashContent: string,
     createdAt: Date,
-  ): Promise<{ newMessage: Message; chatRoom: Room; members: User[] }> {
-    let result: { newMessage: Message; chatRoom: Room; members: User[] } = null;
+  ): Promise<{ newMessage: Message; roomMessages: Message[]; chatRoom: Room; members: User[] }> {
+    let result: { newMessage: Message; roomMessages: Message[]; chatRoom: Room; members: User[] } = null;
     await authAdmin
       .verifyIdToken(accessToken)
       .then(async decodedIdToken => {
@@ -153,10 +153,12 @@ export class RoomService {
           },
         });
 
+        const roomMessages = await this.getRoomMessage(roomId);
         const roomMembers = await this.getRoomMember(roomId);
 
         result = {
           newMessage,
+          roomMessages: [...roomMessages],
           chatRoom,
           members: roomMembers,
         };

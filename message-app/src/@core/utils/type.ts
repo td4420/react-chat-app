@@ -12,6 +12,8 @@ export type GlobalData = {
 export type GlobalDataContextValue = {
   setGlobalData: (updatedData: GlobalData) => void
   globalData: GlobalData
+  updateCurrentRoomId: (roomId: string) => void
+  currentRoom: RoomData | null
 }
 
 export enum EVENT_TYPE {

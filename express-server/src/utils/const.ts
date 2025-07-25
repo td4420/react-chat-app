@@ -1,2 +1,2 @@
 export const MAX_MESSAGE = 100;
-export const MAX_ROOM = 50;
+export const MAX_ROOM = 20;
