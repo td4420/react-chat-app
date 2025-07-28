@@ -23,3 +23,15 @@ export type Conversations = {
 export type ConversationMessage = MessageModel & {
   senderAvatar: string
 }
+
+export type SearchResult = {
+  id: string
+  name: string
+  avatar: string
+  status: UserStatus
+}
+
+export type SearchResultData = {
+  groups: SearchResult[]
+  directs: SearchResult[]
+}

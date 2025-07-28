@@ -70,7 +70,29 @@ const ChatMessageContainer = () => {
     })
   }, [messages])
 
-  const { name, avatar } = currentRoom || {}
+  const name = useMemo(() => {
+    if (!currentRoom || !currentUser) {
+      return ''
+    }
+
+    const isDirectChat = currentRoom.isDirectChat
+
+    return isDirectChat
+      ? currentRoom.members.find(member => member.id !== currentUser.uid)?.name || ''
+      : currentRoom.name
+  }, [currentRoom, currentUser])
+
+  const avatar = useMemo(() => {
+    if (!currentRoom || !currentUser) {
+      return ''
+    }
+
+    const isDirectChat = currentRoom.isDirectChat
+
+    return isDirectChat
+      ? currentRoom.members.find(member => member.id !== currentUser.uid)?.avatar || ''
+      : currentRoom.avatar
+  }, [currentRoom, currentUser])
 
   const sendMessage = useCallback(
     async (innerHtml: string, textContent: string, innerText: string, nodes: NodeList) => {
@@ -87,7 +109,7 @@ const ChatMessageContainer = () => {
       const newMessage = {
         createdAt: new Date(),
         hashContent: textContent,
-        roomId: currentRoom?.id,
+        roomId: currentRoom.id,
         accessToken
       }
 
@@ -110,7 +132,7 @@ const ChatMessageContainer = () => {
       <ConversationHeader>
         <ConversationHeader.Back />
         <Avatar name={name} src={avatar} />
-        <ConversationHeader.Content info='Active 10 mins ago' userName='Zoe' />
+        <ConversationHeader.Content info='Active 10 mins ago' userName={name} />
         <ConversationHeader.Actions>
           <VoiceCallButton />
           <VideoCallButton />

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { Container } from 'typedi';
 import { UserService } from '@services/users.service';
+import authAdmin from '@/config/firebase';
 
 export class UserController {
   public user = Container.get(UserService);
@@ -20,6 +21,68 @@ export class UserController {
         },
         success: true,
       });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { email, name, avatar, password } = req.body;
+      const user = await this.user.findUniqueUser({
+        where: {
+          email: email,
+        },
+      });
+
+      if (user) {
+        res.status(201).json({
+          data: {
+            message: 'Customer account is existed',
+          },
+          success: false,
+        });
+
+        return;
+      }
+
+      try {
+        await authAdmin.getUserByEmail(email);
+        res.status(201).json({
+          data: {
+            message: 'Customer account is existed',
+          },
+          success: false,
+        });
+
+        return;
+      } catch (error) {
+        //Create account if firebase user not existed
+        const newUser = await authAdmin.createUser({
+          email,
+          emailVerified: false,
+          password: password,
+          displayName: name,
+          photoURL: avatar || undefined,
+          disabled: false,
+        });
+
+        await this.user.registerUser({
+          data: {
+            id: newUser.uid,
+            email,
+            avatar,
+            name,
+          },
+        });
+
+        res.status(201).json({
+          data: {
+            message: 'Register user success',
+          },
+          success: true,
+        });
+      }
     } catch (error) {
       next(error);
     }

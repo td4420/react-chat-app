@@ -65,7 +65,8 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
             name: chatRoom.name,
             avatar: chatRoom.avatar,
             messages: [newMessage],
-            members
+            members,
+            isDirectChat: chatRoom.isDirectChat
           }
         ]
       })

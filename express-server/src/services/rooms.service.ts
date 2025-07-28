@@ -1,7 +1,8 @@
 import authAdmin from '@/config/firebase';
 import { MAX_MESSAGE, MAX_ROOM } from '@/utils/const';
-import { GetRoomDetailResult } from '@/utils/type';
-import { Message, Prisma, PrismaClient, Room, RoomMember, User } from '@prisma/client';
+import { SearchResult } from '@/utils/type';
+import { Message, Prisma, PrismaClient, Room, User } from '@prisma/client';
+import sync from 'jwt-encode';
 import { Service } from 'typedi';
 
 @Service()
@@ -24,6 +25,9 @@ export class RoomService {
         id: {
           in: roomMembers.map(member => member.roomId),
         },
+        messages: {
+          some: {},
+        },
       },
       take: MAX_ROOM,
     });
@@ -42,7 +46,7 @@ export class RoomService {
       }),
     );
 
-    return result;
+    return result.filter(room => room.messages.length > 0);
   }
 
   private async getRoomMember(roomId: string) {
@@ -73,35 +77,41 @@ export class RoomService {
     });
   }
 
-  public async getRoomData(userId: string, roomId: string): Promise<GetRoomDetailResult> {
-    const isUserInRoom = await this.roomMember.findFirst({
+  public async search(userId: string, searchKey: string): Promise<SearchResult> {
+    const userRooms = await this.roomMember.findMany({
       where: {
         memberId: userId,
-        roomId,
+        room: {
+          name: {
+            contains: searchKey,
+          },
+          isDirectChat: false,
+        },
       },
     });
 
-    if (!isUserInRoom) {
-      return null;
-    }
-
-    const chatRoom = await this.room.findUnique({
+    const rooms = await this.room.findMany({
       where: {
-        id: roomId,
+        id: {
+          in: userRooms.map(userRoom => userRoom.roomId),
+        },
       },
     });
 
-    if (!chatRoom) {
-      return null;
-    }
-
-    const roomMessages = await this.getRoomMessage(roomId);
-    const roomMembers = await this.getRoomMember(roomId);
+    const users = await this.user.findMany({
+      where: {
+        id: {
+          not: userId,
+        },
+        name: {
+          contains: searchKey,
+        },
+      },
+    });
 
     return {
-      ...chatRoom,
-      roomMessages,
-      roomMembers,
+      rooms,
+      users,
     };
   }
 
@@ -168,5 +178,69 @@ export class RoomService {
       });
 
     return result;
+  }
+
+  public async getDirectChat(userUid: string, targetUserUid: string) {
+    const roomId = sync(
+      {
+        user: userUid,
+        target: targetUserUid,
+      },
+      process.env.SECRET_KEY,
+    );
+
+    const roomId2 = sync(
+      {
+        user: targetUserUid,
+        target: userUid,
+      },
+      process.env.SECRET_KEY,
+    );
+
+    const room = await this.room.findFirst({
+      where: {
+        id: {
+          in: [roomId, roomId2],
+        },
+      },
+    });
+
+    if (!room) {
+      const newRoom = await this.room.create({
+        data: {
+          id: roomId,
+          name: 'Direct Chat',
+          isDirectChat: true,
+          roomMembers: {
+            createMany: {
+              data: [
+                {
+                  memberId: userUid,
+                },
+                {
+                  memberId: targetUserUid,
+                },
+              ],
+            },
+          },
+        },
+      });
+
+      const roomMembers = await this.getRoomMember(newRoom.id);
+      return {
+        ...newRoom,
+        messages: [],
+        members: roomMembers,
+      };
+    }
+
+    const roomMessages = await this.getRoomMessage(room.id);
+    const roomMembers = await this.getRoomMember(room.id);
+
+    return {
+      ...room,
+      messages: roomMessages,
+      members: roomMembers,
+    };
   }
 }

@@ -20,11 +20,12 @@ model User {
 }
 
 model Room {
-  id          String       @id @default(uuid())
-  name        String
-  avatar      String       @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
-  roomMembers RoomMember[]
-  messages    Message[]
+  id           String       @id @default(uuid())
+  name         String
+  avatar       String       @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
+  isDirectChat Boolean      @default(false)
+  roomMembers  RoomMember[]
+  messages     Message[]
 }
 
 model RoomMember {

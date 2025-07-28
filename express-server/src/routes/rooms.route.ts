@@ -14,6 +14,7 @@ export class RoomRoute implements Routes {
 
   private initializeRoutes() {
     this.router.post(`${this.path}`, AuthMiddleware, this.room.findAllRoom);
-    this.router.get(`${this.path}/:roomId`, AuthMiddleware, this.room.getRoomDetail);
+    this.router.get(`${this.path}/search/:searchKey`, AuthMiddleware, this.room.search);
+    this.router.get(`${this.path}/direct/:uuid`, AuthMiddleware, this.room.getDirectChat);
   }
 }

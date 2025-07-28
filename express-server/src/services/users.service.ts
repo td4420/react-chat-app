@@ -1,5 +1,6 @@
 import { Prisma, PrismaClient, User } from '@prisma/client';
 import { Service } from 'typedi';
+import authAdmin from '@/config/firebase';
 
 @Service()
 export class UserService {
@@ -7,5 +8,9 @@ export class UserService {
 
   public async findUniqueUser(args: Prisma.UserFindUniqueArgs): Promise<User> {
     return await this.user.findUnique({ ...args });
+  }
+
+  public async registerUser(args: Prisma.UserCreateArgs) {
+    return await this.user.create({ ...args });
   }
 }

@@ -49,7 +49,7 @@ export const GlobalDataProvider = ({ children }: { children: ReactNode }) => {
     initData()
   }, [currentUser])
 
-  const currentRoom = useMemo(() => {
+  const currentRoom: RoomData | null = useMemo(() => {
     const result = globalData.rooms.find(room => room.id === currentRoomId)
     if (!result) {
       return null

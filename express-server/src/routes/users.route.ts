@@ -13,5 +13,6 @@ export class UserRoute implements Routes {
 
   private initializeRoutes() {
     this.router.post(`${this.path}/checkUserExisted`, this.user.checkUserExisted);
+    this.router.post(`${this.path}/register`, this.user.register);
   }
 }
