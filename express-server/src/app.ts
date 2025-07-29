@@ -13,7 +13,7 @@ import { Routes } from '@interfaces/routes.interface';
 import { ErrorMiddleware } from '@middlewares/error.middleware';
 import { logger, stream } from '@utils/logger';
 import WebSocket, { WebSocketServer } from 'ws';
-import { EVENT_TYPE } from './utils/type';
+import { EVENT_TYPE, NewMessagePayload } from './utils/type';
 import { RoomService } from '@services/rooms.service';
 
 export class App {
@@ -55,8 +55,7 @@ export class App {
         console.log('receive message');
         const { eventType, data: eventData } = JSON.parse(data as any);
         if (eventType === EVENT_TYPE.SEND_MESSAGE) {
-          const { accessToken, createdAt, hashContent, roomId } = eventData;
-          const newMessage = await roomService.sendMessage(accessToken, roomId, hashContent, createdAt);
+          const newMessage = await roomService.sendMessage(eventData as NewMessagePayload);
           // Broadcast to all connected clients
           //TODO: Send to room member only
           wss.clients.forEach(function each(client) {

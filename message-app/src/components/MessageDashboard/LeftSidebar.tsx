@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { useGlobalData } from 'src/@core/hooks/useGlobalData'
 import useSearchResult from 'src/@core/hooks/useSearchResult'
 import auth from 'src/configs/firebase'
-import { getMessageFromHashContent } from 'src/utils/function'
 import { Conversations } from 'src/utils/type'
 
 const LeftSideBar = () => {
@@ -41,7 +40,7 @@ const LeftSideBar = () => {
 
       return {
         id: room.id,
-        info: lastMessage ? getMessageFromHashContent(lastMessage.hashContent) : '',
+        info: lastMessage?.decryptedContent ?? '',
         lastSenderName: lastSender ? lastSender.name : '',
         name: !room.isDirectChat ? room.name : room.members.find(member => member.id != currentUser.uid)?.name || '',
         avatar: !room.isDirectChat

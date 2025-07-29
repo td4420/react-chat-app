@@ -22,3 +22,6 @@ export const REGISTER_USER_END_POINT = '/users/register'
 export const GET_USER_CHAT_ROOMS_END_POINT = '/rooms'
 export const SEARCH_CONVERSATION_END_POINT = '/rooms/search'
 export const GET_DIRECT_CHAT_END_POINT = '/rooms/direct'
+
+//CONSTANT
+export const PRIVATE_KEY_PAIR_KEY = 'e2ee-private-key'

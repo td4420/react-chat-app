@@ -1,6 +1,5 @@
 import { Prisma, PrismaClient, User } from '@prisma/client';
 import { Service } from 'typedi';
-import authAdmin from '@/config/firebase';
 
 @Service()
 export class UserService {

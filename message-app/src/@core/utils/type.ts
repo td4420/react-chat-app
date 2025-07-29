@@ -1,7 +1,13 @@
 import { Message, Room, User } from '@prisma/client'
 
 export type RoomData = Room & {
-  messages: Message[]
+  messages: (Message & {
+    decryptedContent?: string
+    messageKey: {
+      encryptedKey: string
+      recipientId: string
+    }[]
+  })[]
   members: User[]
 }
 
@@ -24,7 +30,13 @@ export enum EVENT_TYPE {
 export type NewMessageData = {
   eventType: EVENT_TYPE
   data: {
-    newMessage: Message
+    newMessage: Message & {
+      decryptedContent?: string
+      messageKey: {
+        encryptedKey: string
+        recipientId: string
+      }[]
+    }
     chatRoom: Room
     members: User[]
   }

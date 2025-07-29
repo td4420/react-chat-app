@@ -1,7 +1,7 @@
 import authAdmin from '@/config/firebase';
 import { MAX_MESSAGE, MAX_ROOM } from '@/utils/const';
-import { SearchResult } from '@/utils/type';
-import { Message, Prisma, PrismaClient, Room, User } from '@prisma/client';
+import { NewMessagePayload, SearchResult, SendMessageResult } from '@/utils/type';
+import { Message, MessageKey, Prisma, PrismaClient, Room, User } from '@prisma/client';
 import sync from 'jwt-encode';
 import { Service } from 'typedi';
 
@@ -11,6 +11,7 @@ export class RoomService {
   public room = this.prismaClient.room;
   public roomMember = this.prismaClient.roomMember;
   public message = this.prismaClient.message;
+  public messageKey = this.prismaClient.messageKey;
   public user = this.prismaClient.user;
 
   public async findAllRoom(userId: string) {
@@ -73,6 +74,14 @@ export class RoomService {
       orderBy: {
         createdAt: Prisma.SortOrder.asc,
       },
+      include: {
+        messageKey: {
+          select: {
+            encryptedKey: true,
+            recipientId: true,
+          },
+        },
+      },
       take: MAX_MESSAGE,
     });
   }
@@ -115,13 +124,9 @@ export class RoomService {
     };
   }
 
-  public async sendMessage(
-    accessToken: string,
-    roomId: string,
-    hashContent: string,
-    createdAt: Date,
-  ): Promise<{ newMessage: Message; roomMessages: Message[]; chatRoom: Room; members: User[] }> {
-    let result: { newMessage: Message; roomMessages: Message[]; chatRoom: Room; members: User[] } = null;
+  public async sendMessage(eventData: NewMessagePayload): Promise<SendMessageResult> {
+    let result: SendMessageResult = null;
+    const { accessToken, roomId, createdAt, encryptedPayload, messageKeys, iv } = eventData;
     await authAdmin
       .verifyIdToken(accessToken)
       .then(async decodedIdToken => {
@@ -157,17 +162,45 @@ export class RoomService {
         const newMessage: Message = await this.message.create({
           data: {
             createdAt,
-            hashContent,
             senderId: userId,
             roomId,
+            encryptedPayload,
+            iv,
           },
+        });
+
+        await this.messageKey.createMany({
+          data: messageKeys.map(key => {
+            return {
+              messageId: newMessage.id,
+              recipientId: key.recipientId,
+              encryptedKey: key.encryptedKey,
+            };
+          }),
         });
 
         const roomMessages = await this.getRoomMessage(roomId);
         const roomMembers = await this.getRoomMember(roomId);
+        const newMessageData = await this.message.findUnique({
+          where: {
+            id: newMessage.id,
+          },
+          include: {
+            messageKey: {
+              select: {
+                id: true,
+                recipientId: true,
+                encryptedKey: true,
+                messageId: true,
+              },
+            },
+          },
+        });
 
         result = {
-          newMessage,
+          newMessage: {
+            ...newMessageData,
+          },
           roomMessages: [...roomMessages],
           chatRoom,
           members: roomMembers,

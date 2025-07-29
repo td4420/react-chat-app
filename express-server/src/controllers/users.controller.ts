@@ -28,7 +28,8 @@ export class UserController {
 
   public register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { email, name, avatar, password } = req.body;
+      const { email, name, avatar, password, publicKey } = req.body;
+
       const user = await this.user.findUniqueUser({
         where: {
           email: email,
@@ -73,6 +74,7 @@ export class UserController {
             email,
             avatar,
             name,
+            publicKey,
           },
         });
 

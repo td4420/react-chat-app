@@ -4,6 +4,7 @@ import { GlobalData, GlobalDataContextValue, RoomData } from 'src/@core/utils/ty
 import auth from 'src/configs/firebase'
 import { postAxios } from 'src/fetcher'
 import { GET_USER_CHAT_ROOMS_END_POINT } from 'src/utils/const'
+import { getMessageFromHashContent } from 'src/utils/function'
 
 const initialGlobalData: GlobalData = {
   rooms: []
@@ -41,9 +42,28 @@ export const GlobalDataProvider = ({ children }: { children: ReactNode }) => {
         return
       }
 
-      setData({
-        rooms: data as RoomData[]
-      })
+      const rooms = data as RoomData[]
+      const decryptedRooms: RoomData[] = await Promise.all(
+        rooms.map(async room => {
+          return {
+            ...room,
+            messages: await Promise.all(
+              room.messages.map(async message => {
+                const messageKey = message.messageKey.find(key => key.recipientId === currentUser.uid)
+
+                return {
+                  ...message,
+                  decryptedContent: messageKey
+                    ? await getMessageFromHashContent(messageKey.encryptedKey, message.encryptedPayload, message.iv)
+                    : ''
+                }
+              })
+            )
+          }
+        })
+      )
+
+      setData({ rooms: decryptedRooms })
     }
 
     initData()

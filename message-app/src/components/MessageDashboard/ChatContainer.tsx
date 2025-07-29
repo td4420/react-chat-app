@@ -15,7 +15,7 @@ import { useCallback, useMemo } from 'react'
 import { useGlobalData } from 'src/@core/hooks/useGlobalData'
 import { useWebsocket } from 'src/@core/hooks/useWebsocket'
 import auth from 'src/configs/firebase'
-import { getMessageFromHashContent } from 'src/utils/function'
+import { b64, getCryptoKeyFromBase64, strToUint8 } from 'src/utils/function'
 import { ConversationMessage } from 'src/utils/type'
 
 const ChatMessageContainer = () => {
@@ -36,19 +36,21 @@ const ChatMessageContainer = () => {
       return []
     }
 
-    return currentRoom.messages.map(message => {
-      const sender = currentRoom.members.find(member => member.id === message.senderId)
-      const isSender = currentUser.uid === message.senderId
+    return currentRoom.messages
+      .map(message => {
+        const sender = currentRoom.members.find(member => member.id === message.senderId)
+        const isSender = currentUser.uid === message.senderId
 
-      return {
-        direction: !isSender ? 'incoming' : 'outgoing',
-        message: getMessageFromHashContent(message.hashContent),
-        position: 'single',
-        sender: sender?.name || '',
-        sentTime: new Date(message.createdAt).toISOString(),
-        senderAvatar: sender?.avatar || ''
-      }
-    })
+        return {
+          direction: !isSender ? 'incoming' : 'outgoing',
+          message: message?.decryptedContent ?? '',
+          position: 'single',
+          sender: sender?.name || '',
+          sentTime: new Date(message.createdAt).toISOString(),
+          senderAvatar: sender?.avatar || ''
+        } as ConversationMessage
+      })
+      .filter(item => !!item.message)
   }, [currentRoom, currentUser])
 
   const renderMessages = useCallback(() => {
@@ -106,18 +108,43 @@ const ChatMessageContainer = () => {
 
       const accessToken = await currentUser.getIdToken()
 
+      const aesKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt'])
+      const iv = crypto.getRandomValues(new Uint8Array(12))
+
+      const encryptedMessage = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, strToUint8(textContent))
+
       const newMessage = {
         createdAt: new Date(),
-        hashContent: textContent,
+        iv: b64(iv),
+        encryptedPayload: b64(encryptedMessage),
         roomId: currentRoom.id,
         accessToken
       }
+
+      const exportedAesKey = await crypto.subtle.exportKey('raw', aesKey)
+      const messageKeys: {
+        recipientId: string
+        encryptedKey: string
+      }[] = []
+
+      await Promise.all(
+        currentRoom.members.map(async member => {
+          const memberPublicKey = await getCryptoKeyFromBase64(member.publicKey)
+          const encryptedSymKey = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, memberPublicKey, exportedAesKey)
+
+          messageKeys.push({
+            recipientId: member.id,
+            encryptedKey: b64(encryptedSymKey) // Base64 to store in DB
+          })
+        })
+      )
 
       websocket.send(
         JSON.stringify({
           eventType: 'sendMessage',
           data: {
-            ...newMessage
+            ...newMessage,
+            messageKeys
           }
         })
       )

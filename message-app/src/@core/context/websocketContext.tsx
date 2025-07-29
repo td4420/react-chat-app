@@ -1,7 +1,10 @@
 // ** React Imports
+import { User } from 'firebase/auth'
 import { createContext, ReactNode, useEffect, useState } from 'react'
-import { useGlobalData } from '../hooks/useGlobalData'
 import { EVENT_TYPE, NewMessageData, RoomData } from 'src/@core/utils/type'
+import auth from 'src/configs/firebase'
+import { getMessageFromHashContent } from 'src/utils/function'
+import { useGlobalData } from '../hooks/useGlobalData'
 
 export type WebsocketData = {
   websocket: WebSocket | null
@@ -25,6 +28,7 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
   const [websocketData, setWebsocketData] = useState<WebsocketData>({ ...initialWebsocketData })
   const { globalData, setGlobalData } = useGlobalData()
   const [newMessageEvent, setNewMessageEvent] = useState<NewMessageData | null>(null)
+  const currentUser = auth.currentUser
 
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_WEBSOCKET_DOMAIN) {
@@ -43,14 +47,25 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
     setWebsocketData({ websocket: webSocketConnection })
   }, [])
 
-  useEffect(() => {
-    if (!newMessageEvent) {
+  const handleNewMessageEvent = async (newMessageEvent: NewMessageData, currentUser: User) => {
+    setNewMessageEvent(null)
+    if (!newMessageEvent || !currentUser) {
       return
     }
 
     const {
       data: { chatRoom, newMessage, members }
     } = newMessageEvent
+
+    const messageKey = newMessage.messageKey.find(key => key.recipientId === currentUser.uid)
+    const decryptedContent = messageKey
+      ? await getMessageFromHashContent(messageKey.encryptedKey, newMessage.encryptedPayload, newMessage.iv)
+      : ''
+
+    const newDecryptedMessage = {
+      ...newMessage,
+      decryptedContent
+    }
 
     const chatRoomIndex = globalData.rooms.findIndex(room => room.id === chatRoom.id)
 
@@ -64,7 +79,11 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
             id: newMessage.roomId,
             name: chatRoom.name,
             avatar: chatRoom.avatar,
-            messages: [newMessage],
+            messages: [
+              {
+                ...newDecryptedMessage
+              }
+            ],
             members,
             isDirectChat: chatRoom.isDirectChat
           }
@@ -73,7 +92,7 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
     } else {
       const newRoomArray: RoomData[] = [...globalData.rooms]
       newRoomArray[chatRoomIndex].messages.push({
-        ...newMessage
+        ...newDecryptedMessage
       })
 
       setGlobalData({
@@ -81,10 +100,15 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
         rooms: newRoomArray
       })
     }
+  }
 
-    setNewMessageEvent(null)
+  useEffect(() => {
+    if (!newMessageEvent || !currentUser) {
+      return
+    }
+    handleNewMessageEvent(newMessageEvent, currentUser)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globalData, newMessageEvent])
+  }, [globalData, newMessageEvent, currentUser])
 
   return <WebsocketContext.Provider value={{ websocketData }}>{children}</WebsocketContext.Provider>
 }

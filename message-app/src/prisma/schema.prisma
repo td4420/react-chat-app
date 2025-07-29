@@ -15,8 +15,10 @@ model User {
   email       String       @unique
   name        String
   avatar      String       @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
+  publicKey   String       @db.Text
   roomMembers RoomMember[]
   messages    Message[]
+  messageKey  MessageKey[]
 }
 
 model Room {
@@ -32,6 +34,7 @@ model RoomMember {
   id       String   @id @default(uuid())
   memberId String
   roomId   String
+  joinedAt DateTime @default(now())
   role     UserRole @default(USER)
   member   User     @relation(fields: [memberId], references: [id])
   room     Room     @relation(fields: [roomId], references: [id])
@@ -43,11 +46,22 @@ enum UserRole {
 }
 
 model Message {
-  id          String   @id @default(uuid())
-  createdAt   DateTime @default(now())
-  hashContent String
-  senderId    String
-  sender      User     @relation(fields: [senderId], references: [id])
-  roomId      String
-  room        Room     @relation(fields: [roomId], references: [id])
+  id               String       @id @default(uuid())
+  createdAt        DateTime     @default(now())
+  encryptedPayload String       @db.Text
+  iv               String       @db.Text
+  senderId         String
+  sender           User         @relation(fields: [senderId], references: [id])
+  roomId           String
+  room             Room         @relation(fields: [roomId], references: [id])
+  messageKey       MessageKey[]
+}
+
+model MessageKey {
+  id           String  @id @default(uuid())
+  messageId    String
+  message      Message @relation(fields: [messageId], references: [id])
+  recipientId  String
+  recipient    User    @relation(fields: [recipientId], references: [id])
+  encryptedKey String  @db.Text
 }

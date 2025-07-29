@@ -38,6 +38,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import auth from 'src/configs/firebase'
 import { State } from 'src/pages/login'
 import { ACCESS_TOKEN, INVALID_CREDIT, REGISTER_USER_END_POINT } from 'src/utils/const'
+import { b64, generateKeyPair, getPublicKey, storePrivateKey } from 'src/utils/function'
 
 // ** Styled Components
 const Card = styled(MuiCard)<CardProps>(({ theme }) => ({
@@ -80,18 +81,23 @@ const RegisterForm = ({ setState }: Props) => {
 
   const handleLogin = async (registerData: FormRegisterData) => {
     try {
+      const keyPair = await generateKeyPair()
+      await storePrivateKey(keyPair)
+      const publicKey = await getPublicKey(keyPair)
+
       const postUrl = `${process.env.NEXT_PUBLIC_API_DOMAIN}${REGISTER_USER_END_POINT}`
       const { success, data } = await postAxios(
         postUrl,
         {
-          ...registerData
+          ...registerData,
+          publicKey: b64(publicKey)
         },
         undefined,
         true
       )
 
       if (!success) {
-        toast.error((data as {message: string}).message)
+        toast.error((data as { message: string }).message)
 
         return
       }
@@ -102,6 +108,7 @@ const RegisterForm = ({ setState }: Props) => {
       toast.success((data as { message: string }).message)
       router.push('/')
     } catch (error) {
+      console.log(error)
       const errorData = error as FirebaseError
       if (errorData.code == INVALID_CREDIT) {
         toast.error('Email or password are wrong')
