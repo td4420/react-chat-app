@@ -18,6 +18,7 @@ export const TRANSACTION_PAGE = '/transaction'
 
 //API Endpoint
 export const CHECK_USER_EXISTED_END_POINT = '/users/checkUserExisted'
+export const GET_RECOVERY_KEY_END_POINT = '/users/e2ee-keys'
 export const REGISTER_USER_END_POINT = '/users/register'
 export const GET_USER_CHAT_ROOMS_END_POINT = '/rooms'
 export const SEARCH_CONVERSATION_END_POINT = '/rooms/search'

@@ -2,6 +2,7 @@ import { NextFunction, Request, Response } from 'express';
 import { Container } from 'typedi';
 import { UserService } from '@services/users.service';
 import authAdmin from '@/config/firebase';
+import { User, UserRecoveryKey } from '@prisma/client';
 
 export class UserController {
   public user = Container.get(UserService);
@@ -28,7 +29,7 @@ export class UserController {
 
   public register = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { email, name, avatar, password, publicKey } = req.body;
+      const { email, name, avatar, password, publicKey, encryptedPassphrase, encryptedPrivateKey } = req.body;
 
       const user = await this.user.findUniqueUser({
         where: {
@@ -75,6 +76,12 @@ export class UserController {
             avatar,
             name,
             publicKey,
+            recoveryKey: {
+              create: {
+                encryptedPassphrase,
+                encryptedPrivateKey,
+              },
+            },
           },
         });
 
@@ -85,6 +92,38 @@ export class UserController {
           success: true,
         });
       }
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  public getRecoveryKey = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const userData: User = req['user'];
+
+      const user = (await this.user.findUniqueUser({
+        where: {
+          email: userData.email,
+        },
+        include: {
+          recoveryKey: {
+            select: {
+              encryptedPassphrase: true,
+              encryptedPrivateKey: true,
+            },
+          },
+        },
+      })) as User & {
+        recoveryKey: UserRecoveryKey;
+      };
+
+      res.status(200).json({
+        data: {
+          encryptedPassphrase: user.recoveryKey.encryptedPassphrase,
+          encryptedPrivateKey: user.recoveryKey.encryptedPrivateKey,
+        },
+        success: true,
+      });
     } catch (error) {
       next(error);
     }

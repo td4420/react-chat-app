@@ -37,6 +37,7 @@ import { User } from 'firebase/auth'
 import { deleteCookie, setCookie } from 'cookies-next'
 import { GlobalDataProvider } from 'src/@core/context/globalContext'
 import { WebsocketProvider } from 'src/@core/context/websocketContext'
+import { removePrivateKey } from 'src/utils/function'
 
 // ** Extend App Props with Emotion
 type ExtendedAppProps = AppProps & {
@@ -91,6 +92,7 @@ const App = (props: ExtendedAppProps) => {
       setCookie(ACCESS_TOKEN, token)
     } else {
       deleteCookie(ACCESS_TOKEN)
+      await removePrivateKey()
     }
   }
 

@@ -1,4 +1,5 @@
-import { set, get } from 'idb-keyval'
+import { del, get, set } from 'idb-keyval'
+import { b64urlEncode } from './base64Url'
 import { PRIVATE_KEY_PAIR_KEY } from './const'
 
 const algorithm = {
@@ -33,9 +34,13 @@ export const generateKeyPair = async (): Promise<CryptoKeyPair> => {
   )
 }
 
-export const storePrivateKey = async (keyPair: CryptoKeyPair) => {
-  const exportedPrivateKey = await crypto.subtle.exportKey('pkcs8', keyPair.privateKey)
+export const storePrivateKey = async (privateKey: CryptoKey) => {
+  const exportedPrivateKey = await crypto.subtle.exportKey('pkcs8', privateKey)
   await set(PRIVATE_KEY_PAIR_KEY, exportedPrivateKey)
+}
+
+export const removePrivateKey = async () => {
+  await del(PRIVATE_KEY_PAIR_KEY)
 }
 
 export const getPublicKey = async (keyPair: CryptoKeyPair) => {
@@ -92,4 +97,50 @@ export const getCryptoKeyFromBase64 = async (publicKey: string) => {
   const keyBuffer = fromB64(publicKey) as BufferSource
 
   return await crypto.subtle.importKey('spki', keyBuffer, algorithm, true, ['encrypt'])
+}
+
+export const generatePassphrase = (): string => {
+  if (crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+
+  // Per RFC4122 version 4 UUID structure
+  bytes[6] = (bytes[6] & 0x0f) | 0x40 // version 4
+  bytes[8] = (bytes[8] & 0x3f) | 0x80 // variant
+
+  const toHex = (n: number) => n.toString(16).padStart(2, '0')
+  const hex = Array.from(bytes).map(toHex).join('')
+
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
+}
+
+export const encryptPassphrase = async (passphrase: string, userPassword: string) => {
+  const salt = crypto.getRandomValues(new Uint8Array(16))
+
+  const baseKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(userPassword),
+    { name: 'PBKDF2' },
+    false,
+    ['deriveKey']
+  )
+
+  const aesKey = await crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 310_000, hash: 'SHA-256' },
+    baseKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt']
+  )
+
+  const iv = crypto.getRandomValues(new Uint8Array(12))
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, new TextEncoder().encode(passphrase))
+
+  return {
+    cipher: b64urlEncode(encrypted),
+    salt: b64urlEncode(salt.buffer),
+    iv: b64urlEncode(iv.buffer)
+  }
 }

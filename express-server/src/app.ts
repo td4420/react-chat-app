@@ -15,24 +15,26 @@ import { logger, stream } from '@utils/logger';
 import WebSocket, { WebSocketServer } from 'ws';
 import { EVENT_TYPE, NewMessagePayload } from './utils/type';
 import { RoomService } from '@services/rooms.service';
+import { WebsocketService } from '@services/websocket.service';
 
 export class App {
   public app: express.Application;
   public env: string;
   public port: string | number;
   public roomService: RoomService;
+  public websocketService: WebsocketService;
 
   constructor(routes: Routes[]) {
     this.app = express();
     this.env = NODE_ENV || 'development';
     this.port = PORT || 3000;
-    this.roomService = new RoomService();
+    this.websocketService = new WebsocketService();
 
     this.initializeMiddlewares();
     this.initializeRoutes(routes);
     this.initializeSwagger();
     this.initializeErrorHandling();
-    this.createWebsocketServer(this.roomService);
+    this.createWebsocketServer();
   }
 
   public listen() {
@@ -44,33 +46,8 @@ export class App {
     });
   }
 
-  public createWebsocketServer(roomService: RoomService) {
-    const wss = new WebSocketServer({
-      port: 8080,
-    });
-    wss.on('connection', function connection(ws) {
-      ws.on('error', console.error);
-
-      ws.on('message', async function message(data) {
-        console.log('receive message');
-        const { eventType, data: eventData } = JSON.parse(data as any);
-        if (eventType === EVENT_TYPE.SEND_MESSAGE) {
-          const newMessage = await roomService.sendMessage(eventData as NewMessagePayload);
-          // Broadcast to all connected clients
-          //TODO: Send to room member only
-          wss.clients.forEach(function each(client) {
-            if (client.readyState === WebSocket.OPEN) {
-              client.send(
-                JSON.stringify({
-                  eventType: EVENT_TYPE.NEW_MESSAGE,
-                  data: newMessage,
-                }),
-              );
-            }
-          });
-        }
-      });
-    });
+  public async createWebsocketServer() {
+    this.websocketService.initWebsocket();
   }
 
   public getServer() {

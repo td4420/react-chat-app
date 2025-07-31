@@ -35,3 +35,18 @@ export type SearchResultData = {
   groups: SearchResult[]
   directs: SearchResult[]
 }
+
+export type GetRecoveryKeyResult = {
+  encryptedPrivateKey: {
+    cipher: string
+    salt: string
+    iv: string
+    algo: string
+    kdf: string
+  }
+  encryptedPassphrase: {
+    cipher: string
+    salt: string
+    iv: string
+  }
+}

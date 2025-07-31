@@ -22,7 +22,7 @@ import { styled } from '@mui/material/styles'
 import { Controller, useForm } from 'react-hook-form'
 import { ToastContainer, toast } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { postAxios } from 'src/fetcher'
+import { getAxios, postAxios } from 'src/fetcher'
 import * as yup from 'yup'
 
 // ** Icons Imports
@@ -36,9 +36,12 @@ import { setCookie } from 'cookies-next'
 import { FirebaseError } from 'firebase/app'
 import { signInWithEmailAndPassword } from 'firebase/auth'
 import auth from 'src/configs/firebase'
-import { ACCESS_TOKEN, CHECK_USER_EXISTED_END_POINT, INVALID_CREDIT } from 'src/utils/const'
-import { CheckUserExistedResult } from 'src/utils/type'
+import { ACCESS_TOKEN, CHECK_USER_EXISTED_END_POINT, GET_RECOVERY_KEY_END_POINT, INVALID_CREDIT } from 'src/utils/const'
+import { CheckUserExistedResult, GetRecoveryKeyResult } from 'src/utils/type'
 import { State } from 'src/pages/login'
+import { decryptPassphrase, decryptPrivateKey } from 'src/utils/recovery'
+import { storePrivateKey } from 'src/utils/function'
+import { useGlobalData } from 'src/@core/hooks/useGlobalData'
 
 // ** Styled Components
 const Card = styled(MuiCard)<CardProps>(({ theme }) => ({
@@ -58,6 +61,8 @@ const LoginForm = ({ setState }: Props) => {
   // ** State
   const [showPassword, setShowPassword] = useState<boolean>(false)
 
+  const { refetchData } = useGlobalData()
+
   const schema = yup.object().shape({
     email: yup.string().email().required(),
     password: yup.string().min(5).required()
@@ -74,6 +79,27 @@ const LoginForm = ({ setState }: Props) => {
 
   // ** Hook
   const router = useRouter()
+
+  const recoveryKey = async (userPassword: string) => {
+    const postUrl = `${process.env.NEXT_PUBLIC_API_DOMAIN}${GET_RECOVERY_KEY_END_POINT}`
+    const { success, data } = await getAxios(postUrl)
+
+    if (!success) {
+      toast.error('Can not retrieve recovery key')
+
+      return
+    }
+
+    const {
+      encryptedPassphrase: { cipher: passphraseCipher, salt: passphraseSalt, iv: passphraseIv },
+      encryptedPrivateKey: { iv, cipher, salt }
+    } = data as GetRecoveryKeyResult
+
+    const decryptedPassphrase = await decryptPassphrase(passphraseCipher, passphraseSalt, passphraseIv, userPassword)
+    const privateKey = await decryptPrivateKey({ cipher, salt, iv }, decryptedPassphrase)
+    await storePrivateKey(privateKey)
+    refetchData()
+  }
 
   const handleLogin = async (loginData: FormLoginData) => {
     try {
@@ -101,6 +127,7 @@ const LoginForm = ({ setState }: Props) => {
 
       const { user } = await signInWithEmailAndPassword(auth, loginData.email, loginData.password)
       const accessToken = await user.getIdToken()
+      await recoveryKey(loginData.password)
       setCookie(ACCESS_TOKEN, accessToken)
       toast.success('Login success')
       router.push('/')

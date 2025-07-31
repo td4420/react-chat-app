@@ -20,9 +20,11 @@ export type GlobalDataContextValue = {
   globalData: GlobalData
   updateCurrentRoomId: (roomId: string) => void
   currentRoom: RoomData | null
+  refetchData: () => void
 }
 
 export enum EVENT_TYPE {
+  AUTH = 'auth',
   SEND_MESSAGE = 'sendMessage',
   NEW_MESSAGE = 'newMessage'
 }

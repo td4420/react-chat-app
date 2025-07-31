@@ -6,6 +6,7 @@ export type SearchResult = {
   users: User[];
 };
 export enum EVENT_TYPE {
+  AUTH = 'auth',
   SEND_MESSAGE = 'sendMessage',
   NEW_MESSAGE = 'newMessage',
 }
@@ -30,3 +31,17 @@ export type SendMessageResult = {
   chatRoom: Room;
   members: User[];
 };
+
+export type AuthPayload = {
+  token: string;
+};
+
+export type WebsocketEventPayload =
+  | {
+      eventType: EVENT_TYPE.AUTH;
+      data: AuthPayload;
+    }
+  | {
+      eventType: EVENT_TYPE.SEND_MESSAGE;
+      data: NewMessagePayload;
+    };

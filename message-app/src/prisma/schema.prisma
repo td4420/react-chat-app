@@ -11,14 +11,16 @@ generator client {
 }
 
 model User {
-  id          String       @id @default(uuid())
-  email       String       @unique
+  id          String          @id @default(uuid())
+  email       String          @unique
   name        String
-  avatar      String       @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
-  publicKey   String       @db.Text
+  avatar      String          @default("https://chatscope.io/storybook/react/assets/zoe-E7ZdmXF0.svg")
+  publicKey   String          @db.Text
   roomMembers RoomMember[]
   messages    Message[]
   messageKey  MessageKey[]
+  recoveryKey     UserRecoveryKey @relation(fields: [recoveryKeyId], references: [id])
+  recoveryKeyId   Int             @unique
 }
 
 model Room {
@@ -64,4 +66,11 @@ model MessageKey {
   recipientId  String
   recipient    User    @relation(fields: [recipientId], references: [id])
   encryptedKey String  @db.Text
+}
+
+model UserRecoveryKey {
+  id                  Int   @id @default(autoincrement())
+  encryptedPrivateKey Json
+  encryptedPassphrase Json
+  user                User?
 }

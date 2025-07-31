@@ -38,7 +38,15 @@ import { signInWithEmailAndPassword } from 'firebase/auth'
 import auth from 'src/configs/firebase'
 import { State } from 'src/pages/login'
 import { ACCESS_TOKEN, INVALID_CREDIT, REGISTER_USER_END_POINT } from 'src/utils/const'
-import { b64, generateKeyPair, getPublicKey, storePrivateKey } from 'src/utils/function'
+import {
+  b64,
+  encryptPassphrase,
+  generateKeyPair,
+  generatePassphrase,
+  getPublicKey,
+  storePrivateKey
+} from 'src/utils/function'
+import { encryptPrivateKey } from 'src/utils/recovery'
 
 // ** Styled Components
 const Card = styled(MuiCard)<CardProps>(({ theme }) => ({
@@ -82,15 +90,20 @@ const RegisterForm = ({ setState }: Props) => {
   const handleLogin = async (registerData: FormRegisterData) => {
     try {
       const keyPair = await generateKeyPair()
-      await storePrivateKey(keyPair)
       const publicKey = await getPublicKey(keyPair)
+
+      const passphrase = generatePassphrase()
+      const encryptedPassphrase = await encryptPassphrase(passphrase, registerData.password)
+      const encryptedPrivateKey = await encryptPrivateKey(keyPair.privateKey, passphrase)
 
       const postUrl = `${process.env.NEXT_PUBLIC_API_DOMAIN}${REGISTER_USER_END_POINT}`
       const { success, data } = await postAxios(
         postUrl,
         {
           ...registerData,
-          publicKey: b64(publicKey)
+          publicKey: b64(publicKey),
+          encryptedPassphrase,
+          encryptedPrivateKey
         },
         undefined,
         true
@@ -106,6 +119,7 @@ const RegisterForm = ({ setState }: Props) => {
       const accessToken = await user.getIdToken()
       setCookie(ACCESS_TOKEN, accessToken)
       toast.success((data as { message: string }).message)
+      await storePrivateKey(keyPair.privateKey)
       router.push('/')
     } catch (error) {
       console.log(error)

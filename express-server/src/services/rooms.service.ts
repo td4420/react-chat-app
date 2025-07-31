@@ -1,7 +1,7 @@
 import authAdmin from '@/config/firebase';
 import { MAX_MESSAGE, MAX_ROOM } from '@/utils/const';
 import { NewMessagePayload, SearchResult, SendMessageResult } from '@/utils/type';
-import { Message, MessageKey, Prisma, PrismaClient, Room, User } from '@prisma/client';
+import { Message, Prisma, PrismaClient } from '@prisma/client';
 import sync from 'jwt-encode';
 import { Service } from 'typedi';
 

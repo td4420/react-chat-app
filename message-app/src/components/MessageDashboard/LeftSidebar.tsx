@@ -35,7 +35,7 @@ const LeftSideBar = () => {
     }
 
     return globalData.rooms.map(room => {
-      const lastMessage = room.messages.length > 0 ? room.messages[0] : null
+      const lastMessage = room.messages.length > 0 ? room.messages[room.messages.length - 1] : null
       const lastSender = lastMessage ? room.members.find(member => member.id === lastMessage.senderId) : null
 
       return {

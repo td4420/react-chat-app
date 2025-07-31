@@ -5,6 +5,8 @@ import { EVENT_TYPE, NewMessageData, RoomData } from 'src/@core/utils/type'
 import auth from 'src/configs/firebase'
 import { getMessageFromHashContent } from 'src/utils/function'
 import { useGlobalData } from '../hooks/useGlobalData'
+import { getCookie } from 'cookies-next'
+import { ACCESS_TOKEN } from 'src/utils/const'
 
 export type WebsocketData = {
   websocket: WebSocket | null
@@ -29,13 +31,24 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
   const { globalData, setGlobalData } = useGlobalData()
   const [newMessageEvent, setNewMessageEvent] = useState<NewMessageData | null>(null)
   const currentUser = auth.currentUser
+  const accessToken = getCookie(ACCESS_TOKEN)
 
   useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_WEBSOCKET_DOMAIN) {
+    if (!currentUser || !accessToken || !process.env.NEXT_PUBLIC_WEBSOCKET_DOMAIN) {
       return
     }
 
     const webSocketConnection = new WebSocket(process.env.NEXT_PUBLIC_WEBSOCKET_DOMAIN)
+    webSocketConnection.onopen = () => {
+      webSocketConnection.send(
+        JSON.stringify({
+          eventType: EVENT_TYPE.AUTH,
+          data: {
+            token: accessToken
+          }
+        })
+      )
+    }
     webSocketConnection.onmessage = event => {
       const eventData = JSON.parse(event.data)
       const { eventType } = eventData
@@ -45,7 +58,7 @@ export const WebsocketProvider = ({ children }: { children: ReactNode }) => {
     }
 
     setWebsocketData({ websocket: webSocketConnection })
-  }, [])
+  }, [currentUser, accessToken])
 
   const handleNewMessageEvent = async (newMessageEvent: NewMessageData, currentUser: User) => {
     setNewMessageEvent(null)
